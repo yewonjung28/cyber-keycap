@@ -14,6 +14,11 @@ new RGBELoader().load('./studio.hdr',texture=>{texture.mapping=THREE.Equirectang
 const rig=new THREE.Group();scene.add(rig);
 const keys=[];const ray=new THREE.Raycaster(),pointer=new THREE.Vector2();
 let activePointer=null;
+let orbitPivot=null;
+let middleDrag=null;
+const worldUp=new THREE.Vector3(0,1,0);
+const cameraRight=new THREE.Vector3();
+const dragRotation=new THREE.Quaternion();
 const glowColor=new THREE.Color('#ff8cde');
 let fitBounds=null;
 function fitCameraToKeys(){
@@ -47,7 +52,7 @@ function fitCameraToKeys(){
 }
 
 new GLTFLoader().load('./Four_keycaps.glb',g=>{
- const root=g.scene;rig.add(root);
+ const root=g.scene;orbitPivot=new THREE.Group();rig.add(orbitPivot);orbitPivot.add(root);
  const allBox=new THREE.Box3().setFromObject(root);
  const size=allBox.getSize(new THREE.Vector3()),center=allBox.getCenter(new THREE.Vector3());
  root.position.sub(center);
@@ -87,10 +92,38 @@ function pick(e){
  return keys.find(k=>{let o=hits[0].object;while(o){if(o===k.key)return true;o=o.parent;}return false})||null;
 }
 let held=null;
-host.addEventListener('pointerdown',e=>{const k=pick(e);if(!k)return;held=k;activePointer=e.pointerId;k.target=1;host.setPointerCapture(e.pointerId);});
-function release(e){if(activePointer!==null&&e.pointerId!==activePointer)return;if(held)held.target=0;held=null;activePointer=null;}
+host.addEventListener('pointerdown',e=>{
+ if(e.button===1){
+  e.preventDefault();
+  if(!orbitPivot)return;
+  middleDrag={id:e.pointerId,x:e.clientX,y:e.clientY};
+  host.setPointerCapture(e.pointerId);
+  return;
+ }
+ if(e.button!==0||middleDrag)return;
+ const k=pick(e);if(!k)return;
+ held=k;activePointer=e.pointerId;k.target=1;host.setPointerCapture(e.pointerId);
+});
+host.addEventListener('pointermove',e=>{
+ if(!middleDrag||e.pointerId!==middleDrag.id||!orbitPivot)return;
+ e.preventDefault();
+ const dx=e.clientX-middleDrag.x,dy=e.clientY-middleDrag.y;
+ middleDrag.x=e.clientX;middleDrag.y=e.clientY;
+ // Trackball-style free rotation: horizontal drag spins around world Y;
+ // vertical drag pitches around the camera's screen-right axis.
+ camera.updateMatrixWorld();
+ cameraRight.setFromMatrixColumn(camera.matrixWorld,0).normalize();
+ dragRotation.setFromAxisAngle(worldUp,dx*.007);
+ orbitPivot.quaternion.premultiply(dragRotation);
+ dragRotation.setFromAxisAngle(cameraRight,dy*.007);
+ orbitPivot.quaternion.premultiply(dragRotation);
+ orbitPivot.quaternion.normalize();
+});
+host.addEventListener('auxclick',e=>{if(e.button===1)e.preventDefault();});
+host.addEventListener('mousedown',e=>{if(e.button===1)e.preventDefault();});
+function release(e){if(middleDrag&&e.pointerId===middleDrag.id){middleDrag=null;return;}if(activePointer!==null&&e.pointerId!==activePointer)return;if(held)held.target=0;held=null;activePointer=null;}
 host.addEventListener('pointerup',release);host.addEventListener('pointercancel',release);host.addEventListener('lostpointercapture',release);
-window.addEventListener('blur',()=>{for(const k of keys)k.target=0;held=null;activePointer=null});
+window.addEventListener('blur',()=>{for(const k of keys)k.target=0;held=null;activePointer=null;middleDrag=null;});
 function resize(){
  const w=innerWidth,h=innerHeight;
  camera.aspect=w/h;camera.updateProjectionMatrix();renderer.setSize(w,h);fitCameraToKeys();
