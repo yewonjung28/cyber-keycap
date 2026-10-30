@@ -20,7 +20,7 @@ function fitCameraToKeys(){
  if(!fitBounds)return;
  const box=fitBounds,center=box.getCenter(new THREE.Vector3());
  // Keep the exaggerated perspective direction but center the whole four-key set.
- const viewDirection=new THREE.Vector3(-1.65,1.60,2.15);
+ const viewDirection=new THREE.Vector3(-1.65,2.30,2.15);
  camera.position.copy(center).add(viewDirection);
  camera.lookAt(center);
  camera.zoom=1;
