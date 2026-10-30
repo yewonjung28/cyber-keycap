@@ -110,7 +110,23 @@ new GLTFLoader().load('./Four_keycaps.glb',g=>{
   const leds=[];
   led.traverse(o=>{if(o.isMesh){o.material=Array.isArray(o.material)?o.material.map(m=>m.clone()):o.material.clone();const materials=Array.isArray(o.material)?o.material:[o.material];for(const m of materials){if(m.emissive){leds.push({material:m,intensity:Math.max(m.emissiveIntensity||0,2)});m.emissiveIntensity=0}m.transparent=true;m.opacity=0;}o.visible=false;}});
   led.visible=false;
-  base.traverse(o=>{if(o.isMesh){o.receiveShadow=true;o.castShadow=true;}});
+  // Candy-pink jelly bases: translucent glossy silicone with a soft inner glow.
+  base.traverse(o=>{
+   if(!o.isMesh)return;
+   o.receiveShadow=true;o.castShadow=true;
+   const source=Array.isArray(o.material)?o.material:[o.material];
+   const jelly=source.map(()=>{
+    const m=new THREE.MeshPhysicalMaterial({
+     color:'#ff80d5',metalness:0,roughness:0.16,
+     transmission:0.46,thickness:0.85,ior:1.35,
+     clearcoat:1,clearcoatRoughness:0.09,
+     emissive:'#ff47b9',emissiveIntensity:0.19,
+     envMapIntensity:1.25,transparent:false,side:THREE.DoubleSide
+    });
+    return m;
+   });
+   o.material=Array.isArray(o.material)?jelly:jelly[0];
+  });
   // LED light source exists in the web scene, independent of Blender light exports.
   const bounds=new THREE.Box3().setFromObject(key),mid=bounds.getCenter(new THREE.Vector3());
   const lamp=new THREE.PointLight(glowColor,0,Math.max(size.x,size.z)*.55,2);
