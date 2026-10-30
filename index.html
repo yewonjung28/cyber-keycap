@@ -104,25 +104,25 @@ new GLTFLoader().load('./Four_keycaps.glb',g=>{
   const emissive=[];
   key.traverse(o=>{if(!o.isMesh)return;o.castShadow=true;o.receiveShadow=true;
    const original=Array.isArray(o.material)?o.material:[o.material];
-   const clones=original.map(m=>{const clone=m.clone();if(clone.name==='Material.005'){clone.color.set('#21e8b3');clone.metalness=0.08;clone.roughness=0.32;clone.envMapIntensity=0.65;clone.needsUpdate=true;}if(['I','Lost','MY','CTRL'].includes(clone.name)){clone.color.set('#21e8b3');clone.roughness=0.45;clone.envMapIntensity=0.45;if(clone.map){clone.onBeforeCompile=shader=>{shader.fragmentShader=shader.fragmentShader.replace('#include <emissivemap_fragment>','#include <emissivemap_fragment>\n totalEmissiveRadiance *= texture2D(map, vMapUv).a;');};clone.customProgramCacheKey=()=> 'legend-alpha-emission-v1';}clone.needsUpdate=true;}if(clone.emissive&&clone.emissiveIntensity>0){emissive.push({material:clone,intensity:clone.emissiveIntensity});clone.emissiveIntensity=0;}return clone});
+   const clones=original.map(m=>{const clone=m.clone();if(clone.name==='Material.005'){clone.color.set('#21e8b3');clone.metalness=0;clone.roughness=0.065;clone.envMapIntensity=1.3;clone.clearcoat=1;clone.clearcoatRoughness=0.025;clone.transmission=0;clone.needsUpdate=true;}if(['I','Lost','MY','CTRL'].includes(clone.name)){clone.color.set('#21e8b3');clone.roughness=0.11;clone.envMapIntensity=1.0;clone.clearcoat=1;clone.clearcoatRoughness=0.035;clone.transmission=0;if(clone.map){clone.onBeforeCompile=shader=>{shader.fragmentShader=shader.fragmentShader.replace('#include <emissivemap_fragment>','#include <emissivemap_fragment>\n totalEmissiveRadiance *= texture2D(map, vMapUv).a;');};clone.customProgramCacheKey=()=> 'legend-alpha-emission-v1';}clone.needsUpdate=true;}if(clone.emissive&&clone.emissiveIntensity>0){emissive.push({material:clone,intensity:clone.emissiveIntensity});clone.emissiveIntensity=0;}return clone});
    o.material=Array.isArray(o.material)?clones:clones[0];
   });
   const leds=[];
   led.traverse(o=>{if(o.isMesh){o.material=Array.isArray(o.material)?o.material.map(m=>m.clone()):o.material.clone();const materials=Array.isArray(o.material)?o.material:[o.material];for(const m of materials){if(m.emissive){leds.push({material:m,intensity:Math.max(m.emissiveIntensity||0,2)});m.emissiveIntensity=0}m.transparent=true;m.opacity=0;}o.visible=false;}});
   led.visible=false;
-  // Candy-pink jelly bases: translucent glossy silicone with a soft inner glow.
-  // Style every mesh in the base hierarchy, replacing imported glass shaders.
+  // GLB inspection: Base1..4 are the ONLY support meshes (Material.002).
+  // Keep strong mint tint with glossy acrylic highlights and gentle refraction.
   base.traverse(o=>{
    if(!o.isMesh)return;
    o.receiveShadow=true;o.castShadow=true;
-   const makeJelly=()=>new THREE.MeshPhysicalMaterial({
-    color:'#21e8b3',metalness:0,roughness:0.18,
-    transmission:0.06,thickness:0.4,ior:1.38,
-    clearcoat:1,clearcoatRoughness:0.08,
-    emissive:'#21e8b3',emissiveIntensity:0.22,
-    envMapIntensity:0.7,side:THREE.DoubleSide
+   const acrylic=()=>new THREE.MeshPhysicalMaterial({
+    color:'#21e8b3',metalness:0,roughness:0.055,
+    transmission:0.24,thickness:0.75,ior:1.48,
+    clearcoat:1,clearcoatRoughness:0.025,
+    emissive:'#21e8b3',emissiveIntensity:0.09,
+    envMapIntensity:1.2,side:THREE.FrontSide
    });
-   o.material=Array.isArray(o.material)?o.material.map(makeJelly):makeJelly();
+   o.material=Array.isArray(o.material)?o.material.map(acrylic):acrylic();
   });
   // LED light source exists in the web scene, independent of Blender light exports.
   const bounds=new THREE.Box3().setFromObject(key),mid=bounds.getCenter(new THREE.Vector3());
@@ -131,29 +131,6 @@ new GLTFLoader().load('./Four_keycaps.glb',g=>{
   root.add(lamp);
   keys.push({key,led,lamp,emissive,leds,rest:key.position.y,press:0,target:0});
  }
- // Some exported Blender glass/support meshes are outside Base1..4.
- // Recolor all remaining visible mesh parts, but never touch keys or LEDs.
- const keyOrLedMeshes=new Set();
- for(let i=1;i<=4;i++){
-  for(const partName of ['Key'+i,'Light'+i]){
-   const part=root.getObjectByName(partName);
-   if(part)part.traverse(o=>{if(o.isMesh)keyOrLedMeshes.add(o)});
-  }
- }
- let extraSupportMeshes=0;
- root.traverse(o=>{
-  if(!o.isMesh||keyOrLedMeshes.has(o))return;
-  extraSupportMeshes++;
-  const jelly=()=>new THREE.MeshPhysicalMaterial({
-   color:'#21e8b3',metalness:0,roughness:0.18,
-   transmission:0.06,thickness:0.4,ior:1.38,
-   clearcoat:1,clearcoatRoughness:0.08,
-   emissive:'#21e8b3',emissiveIntensity:0.22,
-   envMapIntensity:0.7,side:THREE.DoubleSide
-  });
-  o.material=Array.isArray(o.material)?o.material.map(jelly):jelly();
- });
- console.info('Candy pink support meshes:',extraSupportMeshes);
  fitBounds=new THREE.Box3().setFromObject(rig);fitCameraToKeys();
  document.querySelector('.badge').textContent='4 KEYS READY / 004';
 },undefined,e=>{console.error(e);document.getElementById('error').style.display='block'});
