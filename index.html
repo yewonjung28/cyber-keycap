@@ -8,40 +8,48 @@ import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import {RGBELoader} from 'three/addons/loaders/RGBELoader.js';
 const host=document.getElementById('app');const scene=new THREE.Scene();scene.background=new THREE.Color('#ffffff');const camera=new THREE.PerspectiveCamera(95,innerWidth/innerHeight,.03,150);camera.position.set(-1.65,2.05,2.15);camera.lookAt(0,0.45,0);camera.zoom=2.65;camera.updateProjectionMatrix();
 const renderer=new THREE.WebGLRenderer({antialias:true,alpha:false});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setSize(innerWidth,innerHeight);renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.05;host.appendChild(renderer.domElement);
-// Middle-button orbit: rotate the camera around the keys, keeping its 95° FOV.
+// Middle-button drag, with Shift+left drag as a reliable Mac fallback.
 const orbitTarget=new THREE.Vector3();
 let orbitDrag=null;
-const orbitAxis=new THREE.Vector3(),orbitQuat=new THREE.Quaternion();
-const orbitOffset=new THREE.Vector3(),orbitRight=new THREE.Vector3();
-renderer.domElement.addEventListener('pointerdown',e=>{
- if(e.button!==1)return;
- e.preventDefault();
+const orbitQuat=new THREE.Quaternion(),orbitOffset=new THREE.Vector3(),orbitRight=new THREE.Vector3();
+const orbitUp=new THREE.Vector3(0,1,0);
+const interactionStatus=document.createElement('div');
+interactionStatus.style.cssText='position:absolute;bottom:56px;left:0;right:0;text-align:center;font:11px ui-monospace,monospace;color:#8b8b8b;pointer-events:none;z-index:3';
+interactionStatus.textContent='MIDDLE DRAG TO ROTATE · SHIFT + DRAG ON MAC';
+host.appendChild(interactionStatus);
+function orbitStart(e){
+ const middle=e.button===1;
+ const fallback=e.button===0&&e.shiftKey;
+ if(!middle&&!fallback)return;
+ e.preventDefault();e.stopPropagation();
  orbitDrag={id:e.pointerId,x:e.clientX,y:e.clientY};
- renderer.domElement.setPointerCapture(e.pointerId);
-},true);
-renderer.domElement.addEventListener('pointermove',e=>{
- if(!orbitDrag||e.pointerId!==orbitDrag.id)return;
+ interactionStatus.textContent='ROTATING · '+(middle?'MIDDLE BUTTON':'SHIFT + DRAG');
+ try{renderer.domElement.setPointerCapture(e.pointerId)}catch(err){console.warn(err)}
+}
+function orbitMove(e){
+ if(!orbitDrag||orbitDrag.id!==e.pointerId)return;
  e.preventDefault();
  const dx=e.clientX-orbitDrag.x,dy=e.clientY-orbitDrag.y;
  orbitDrag.x=e.clientX;orbitDrag.y=e.clientY;
  orbitOffset.copy(camera.position).sub(orbitTarget);
  camera.updateMatrixWorld();
  orbitRight.setFromMatrixColumn(camera.matrixWorld,0).normalize();
- orbitQuat.setFromAxisAngle(new THREE.Vector3(0,1,0),-dx*.008);
- orbitOffset.applyQuaternion(orbitQuat);
- orbitQuat.setFromAxisAngle(orbitRight,-dy*.008);
- orbitOffset.applyQuaternion(orbitQuat);
- camera.position.copy(orbitTarget).add(orbitOffset);
- camera.lookAt(orbitTarget);
+ orbitQuat.setFromAxisAngle(orbitUp,-dx*.009);orbitOffset.applyQuaternion(orbitQuat);
+ orbitQuat.setFromAxisAngle(orbitRight,-dy*.009);orbitOffset.applyQuaternion(orbitQuat);
+ camera.position.copy(orbitTarget).add(orbitOffset);camera.lookAt(orbitTarget);
  camera.updateMatrixWorld();
-},true);
-function endOrbit(e){
- if(orbitDrag&&e.pointerId===orbitDrag.id)orbitDrag=null;
 }
-renderer.domElement.addEventListener('pointerup',endOrbit,true);
-renderer.domElement.addEventListener('pointercancel',endOrbit,true);
-renderer.domElement.addEventListener('lostpointercapture',endOrbit,true);
+function orbitEnd(e){
+ if(!orbitDrag||e.pointerId!==orbitDrag.id)return;
+ orbitDrag=null;
+ interactionStatus.textContent='MIDDLE DRAG TO ROTATE · SHIFT + DRAG ON MAC';
+}
+renderer.domElement.addEventListener('pointerdown',orbitStart,true);
+window.addEventListener('pointermove',orbitMove,true);
+window.addEventListener('pointerup',orbitEnd,true);
+window.addEventListener('pointercancel',orbitEnd,true);
 renderer.domElement.addEventListener('auxclick',e=>{if(e.button===1)e.preventDefault()});
+renderer.domElement.addEventListener('contextmenu',e=>e.preventDefault());
 scene.add(new THREE.HemisphereLight('#ffffff','#a08d9c',.65));const light=new THREE.DirectionalLight('#ffffff',0.9);light.position.set(-3,7,5);light.castShadow=true;light.shadow.mapSize.set(2048,2048);light.shadow.camera.left=-6;light.shadow.camera.right=6;light.shadow.camera.top=6;light.shadow.camera.bottom=-6;light.shadow.bias=-.0003;light.shadow.radius=5;scene.add(light);
 new RGBELoader().load('./studio.hdr',texture=>{texture.mapping=THREE.EquirectangularReflectionMapping;scene.environment=texture;scene.environmentIntensity=0.9;document.querySelector('.badge').textContent='STUDIO HDRI LOADED / 005';},undefined,error=>(console.error('HDRI load failed:',error),document.querySelector('.badge').textContent='STUDIO HDRI ERROR / 005'));
 
@@ -123,7 +131,7 @@ function pick(e){
 }
 let held=null;
 host.addEventListener('pointerdown',e=>{
- if(e.button!==0)return;
+ if(e.button!==0||e.shiftKey||orbitDrag)return;
  const k=pick(e);if(!k)return;
  held=k;activePointer=e.pointerId;k.target=1;host.setPointerCapture(e.pointerId);
 });
