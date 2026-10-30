@@ -175,14 +175,41 @@ function playKeyClick(){
  sound.volume=keycapSound.volume;
  sound.play().catch(err=>console.warn('Keycap sound unavailable:',err));
 }
+// Drag across keys to press them one after another while holding left mouse.
+function activateKey(k){
+ if(held===k)return;
+ if(held)held.target=0;
+ held=k;
+ if(k){k.target=1;playKeyClick();}
+}
 host.addEventListener('pointerdown',e=>{
  if(e.button!==0||e.shiftKey||orbitDrag)return;
- const k=pick(e);if(!k)return;
- held=k;activePointer=e.pointerId;k.target=1;playKeyClick();host.setPointerCapture(e.pointerId);
+ const k=pick(e);
+ if(!k)return;
+ activePointer=e.pointerId;
+ activateKey(k);
+ host.setPointerCapture(e.pointerId);
 });
-function release(e){if(activePointer!==null&&e.pointerId!==activePointer)return;if(held)held.target=0;held=null;activePointer=null;}
-host.addEventListener('pointerup',release);host.addEventListener('pointercancel',release);host.addEventListener('lostpointercapture',release);
-window.addEventListener('blur',()=>{for(const k of keys)k.target=0;held=null;activePointer=null;});
+host.addEventListener('pointermove',e=>{
+ if(activePointer===null||e.pointerId!==activePointer||orbitDrag)return;
+ if((e.buttons&1)===0){release(e);return;}
+ // Passing through empty space releases the previous key; entering the next
+ // key plays its sound once and depresses it.
+ activateKey(pick(e));
+});
+function release(e){
+ if(activePointer===null||e.pointerId!==activePointer)return;
+ activateKey(null);
+ activePointer=null;
+}
+host.addEventListener('pointerup',release);
+host.addEventListener('pointercancel',release);
+host.addEventListener('lostpointercapture',release);
+window.addEventListener('blur',()=>{
+ for(const k of keys)k.target=0;
+ held=null;activePointer=null;orbitDrag=null;
+});
+
 function resize(){
  const w=innerWidth,h=innerHeight;
  camera.aspect=w/h;camera.updateProjectionMatrix();renderer.setSize(w,h);fitCameraToKeys();
