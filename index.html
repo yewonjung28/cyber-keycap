@@ -130,31 +130,14 @@ function pick(e){
  return keys.find(k=>{let o=hits[0].object;while(o){if(o===k.key)return true;o=o.parent;}return false})||null;
 }
 let held=null;
-// Short mechanical keycap click synthesized with Web Audio (no sound file needed).
-let audioCtx=null;
+// Play the user's recorded keycap sound; clone the audio for rapid repeated presses.
+const keycapSound=new Audio('./Keycap.mp3');
+keycapSound.preload='auto';
+keycapSound.volume=0.85;
 function playKeyClick(){
- try{
-  audioCtx??=new (window.AudioContext||window.webkitAudioContext)();
-  if(audioCtx.state==='suspended')audioCtx.resume();
-  const t=audioCtx.currentTime;
-  const duration=.045;
-  const n=Math.floor(audioCtx.sampleRate*duration);
-  const buffer=audioCtx.createBuffer(1,n,audioCtx.sampleRate);
-  const data=buffer.getChannelData(0);
-  for(let i=0;i<n;i++){
-   const x=i/audioCtx.sampleRate;
-   // Brighter, sharper initial click followed by a short keycap body sound.
-   const snap=Math.exp(-x*460)*.95;
-   const body=Math.exp(-x*115)*.30;
-   data[i]=(Math.random()*2-1)*(snap+body);
-  }
-  const src=audioCtx.createBufferSource();src.buffer=buffer;
-  const filter=audioCtx.createBiquadFilter();filter.type='highpass';filter.frequency.value=1150;filter.Q.value=.7;
-  const presence=audioCtx.createBiquadFilter();presence.type='peaking';presence.frequency.value=3100;presence.Q.value=1.0;presence.gain.value=5;
-  const gain=audioCtx.createGain();gain.gain.setValueAtTime(.43,t);gain.gain.exponentialRampToValueAtTime(.001,t+duration);
-  src.connect(filter);filter.connect(presence);presence.connect(gain);gain.connect(audioCtx.destination);
-  src.start(t);src.stop(t+duration);
- }catch(err){console.warn('Key sound unavailable:',err)}
+ const sound=keycapSound.cloneNode();
+ sound.volume=keycapSound.volume;
+ sound.play().catch(err=>console.warn('Keycap sound unavailable:',err));
 }
 host.addEventListener('pointerdown',e=>{
  if(e.button!==0||e.shiftKey||orbitDrag)return;
