@@ -6,7 +6,7 @@
 import * as THREE from 'three';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import {RGBELoader} from 'three/addons/loaders/RGBELoader.js';
-const host=document.getElementById('app');const scene=new THREE.Scene();scene.background=new THREE.Color('#ffffff');const camera=new THREE.OrthographicCamera(-3.8,3.8,3.8,-3.8,.1,100);camera.position.set(0,9,3.5);camera.lookAt(0,0,0);
+const host=document.getElementById('app');const scene=new THREE.Scene();scene.background=new THREE.Color('#ffffff');const camera=new THREE.PerspectiveCamera(95,innerWidth/innerHeight,.03,150);camera.position.set(-3.0,3.15,4.2);camera.lookAt(0,0.55,0);
 const renderer=new THREE.WebGLRenderer({antialias:true,alpha:false});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setSize(innerWidth,innerHeight);renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.05;host.appendChild(renderer.domElement);
 scene.add(new THREE.HemisphereLight('#ffffff','#a08d9c',.65));const light=new THREE.DirectionalLight('#ffffff',0.9);light.position.set(-3,7,5);light.castShadow=true;light.shadow.mapSize.set(2048,2048);light.shadow.camera.left=-6;light.shadow.camera.right=6;light.shadow.camera.top=6;light.shadow.camera.bottom=-6;light.shadow.bias=-.0003;light.shadow.radius=5;scene.add(light);
 new RGBELoader().load('./studio.hdr',texture=>{texture.mapping=THREE.EquirectangularReflectionMapping;scene.environment=texture;scene.environmentIntensity=0.9;document.querySelector('.badge').textContent='STUDIO HDRI LOADED / 005';},undefined,error=>(console.error('HDRI load failed:',error),document.querySelector('.badge').textContent='STUDIO HDRI ERROR / 005'));
@@ -60,8 +60,8 @@ function release(e){if(activePointer!==null&&e.pointerId!==activePointer)return;
 host.addEventListener('pointerup',release);host.addEventListener('pointercancel',release);host.addEventListener('lostpointercapture',release);
 window.addEventListener('blur',()=>{for(const k of keys)k.target=0;held=null;activePointer=null});
 function resize(){
- const w=innerWidth,h=innerHeight,half=3.1;
- camera.left=-half*w/h;camera.right=half*w/h;camera.top=half;camera.bottom=-half;camera.updateProjectionMatrix();renderer.setSize(w,h);
+ const w=innerWidth,h=innerHeight;
+ camera.aspect=w/h;camera.updateProjectionMatrix();renderer.setSize(w,h);
 }
 window.addEventListener('resize',resize);resize();
 let previous=performance.now();
