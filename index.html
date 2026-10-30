@@ -15,6 +15,24 @@ const rig=new THREE.Group();scene.add(rig);
 const keys=[];const ray=new THREE.Raycaster(),pointer=new THREE.Vector2();
 let activePointer=null;
 const glowColor=new THREE.Color('#ff8cde');
+const emissionMasks=new WeakMap();
+function letterEmissionMap(baseMap){
+ if(!baseMap||!baseMap.image)return null;
+ if(emissionMasks.has(baseMap))return emissionMasks.get(baseMap);
+ const source=baseMap.image,canvas=document.createElement('canvas');
+ const max=1024,ratio=Math.min(1,max/Math.max(source.width,source.height));
+ canvas.width=Math.max(1,Math.round(source.width*ratio));canvas.height=Math.max(1,Math.round(source.height*ratio));
+ const ctx=canvas.getContext('2d',{willReadFrequently:true});ctx.drawImage(source,0,0,canvas.width,canvas.height);
+ const pixels=ctx.getImageData(0,0,canvas.width,canvas.height);
+ for(let p=0;p<p<pixels.data.length;p+=4){
+  const a=pixels.data[p+3];pixels.data[p]=a;pixels.data[p+1]=a;pixels.data[p+2]=a;pixels.data[p+3]=255;
+ }
+ ctx.putImageData(pixels,0,0);
+ const map=new THREE.CanvasTexture(canvas);map.flipY=baseMap.flipY;map.colorSpace=THREE.SRGBColorSpace;
+ map.wrapS=baseMap.wrapS;map.wrapT=baseMap.wrapT;map.repeat.copy(baseMap.repeat);map.offset.copy(baseMap.offset);map.rotation=baseMap.rotation;map.center.copy(baseMap.center);
+ emissionMasks.set(baseMap,map);return map;
+}
+
 new GLTFLoader().load('./Four_keycaps.glb',g=>{
  const root=g.scene;rig.add(root);
  const allBox=new THREE.Box3().setFromObject(root);
@@ -30,7 +48,7 @@ new GLTFLoader().load('./Four_keycaps.glb',g=>{
   const emissive=[];
   key.traverse(o=>{if(!o.isMesh)return;o.castShadow=true;o.receiveShadow=true;
    const original=Array.isArray(o.material)?o.material:[o.material];
-   const clones=original.map(m=>{const clone=m.clone();if(clone.name==='Material.005'){clone.color.set('#21e8b3');clone.metalness=0.08;clone.roughness=0.32;clone.envMapIntensity=0.65;clone.needsUpdate=true;}if(['I','Lost','MY','CTRL'].includes(clone.name)){clone.color.set('#21e8b3');clone.roughness=0.32;clone.envMapIntensity=0.65;clone.needsUpdate=true;}if(clone.emissive&&clone.emissiveIntensity>0){emissive.push({material:clone,intensity:clone.emissiveIntensity});clone.emissiveIntensity=0;}return clone});
+   const clones=original.map(m=>{const clone=m.clone();if(clone.name==='Material.005'){clone.color.set('#21e8b3');clone.metalness=0.08;clone.roughness=0.32;clone.envMapIntensity=0.65;clone.needsUpdate=true;}if(['I','Lost','MY','CTRL'].includes(clone.name)){clone.color.set('#21e8b3');clone.roughness=0.32;clone.envMapIntensity=0.65;clone.emissiveMap=letterEmissionMap(clone.map);clone.needsUpdate=true;}if(clone.emissive&&clone.emissiveIntensity>0){emissive.push({material:clone,intensity:clone.emissiveIntensity});clone.emissiveIntensity=0;}return clone});
    o.material=Array.isArray(o.material)?clones:clones[0];
   });
   const leds=[];
