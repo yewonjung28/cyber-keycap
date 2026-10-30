@@ -15,6 +15,37 @@ const rig=new THREE.Group();scene.add(rig);
 const keys=[];const ray=new THREE.Raycaster(),pointer=new THREE.Vector2();
 let activePointer=null;
 const glowColor=new THREE.Color('#ff8cde');
+let fitBounds=null;
+function fitCameraToKeys(){
+ if(!fitBounds)return;
+ const box=fitBounds,center=box.getCenter(new THREE.Vector3());
+ // Keep the exaggerated perspective direction but center the whole four-key set.
+ const viewDirection=new THREE.Vector3(-1.65,1.60,2.15);
+ camera.position.copy(center).add(viewDirection);
+ camera.lookAt(center);
+ camera.zoom=1;
+ camera.updateProjectionMatrix();camera.updateMatrixWorld();
+ const points=[];
+ for(const x of [box.min.x,box.max.x])for(const y of [box.min.y,box.max.y])for(const z of [box.min.z,box.max.z])points.push(new THREE.Vector3(x,y,z));
+ // Fit all projected corners into the requested inner frame (10%-90% width, 15%-85% height).
+ for(let pass=0;pass<3;pass++){
+  camera.updateMatrixWorld();camera.updateProjectionMatrix();
+  const projected=points.map(p=>p.clone().project(camera));
+  const minX=Math.min(...projected.map(p=>p.x)),maxX=Math.max(...projected.map(p=>p.x));
+  const minY=Math.min(...projected.map(p=>p.y)),maxY=Math.max(...projected.map(p=>p.y));
+  const midX=(minX+maxX)/2,midY=(minY+maxY)/2;
+  const distance=camera.position.distanceTo(center);
+  const visibleHeight=2*distance*Math.tan(THREE.MathUtils.degToRad(camera.fov)/2)/camera.zoom;
+  const right=new THREE.Vector3(1,0,0).applyQuaternion(camera.quaternion);
+  const up=new THREE.Vector3(0,1,0).applyQuaternion(camera.quaternion);
+  const shift=right.multiplyScalar(midX*visibleHeight*camera.aspect/2).add(up.multiplyScalar(midY*visibleHeight/2));
+  camera.position.add(shift);center.add(shift);camera.lookAt(center);
+  const zoomFactor=Math.min(1.58/Math.max(.001,maxX-minX),1.36/Math.max(.001,maxY-minY));
+  camera.zoom*=Math.min(zoomFactor,3);
+ }
+ camera.updateProjectionMatrix();
+}
+
 new GLTFLoader().load('./Four_keycaps.glb',g=>{
  const root=g.scene;rig.add(root);
  const allBox=new THREE.Box3().setFromObject(root);
@@ -44,6 +75,7 @@ new GLTFLoader().load('./Four_keycaps.glb',g=>{
   root.add(lamp);
   keys.push({key,led,lamp,emissive,leds,rest:key.position.y,press:0,target:0});
  }
+ fitBounds=new THREE.Box3().setFromObject(rig);fitCameraToKeys();
  document.querySelector('.badge').textContent='4 KEYS READY / 004';
 },undefined,e=>{console.error(e);document.getElementById('error').style.display='block'});
 function pick(e){
@@ -61,7 +93,7 @@ host.addEventListener('pointerup',release);host.addEventListener('pointercancel'
 window.addEventListener('blur',()=>{for(const k of keys)k.target=0;held=null;activePointer=null});
 function resize(){
  const w=innerWidth,h=innerHeight;
- camera.aspect=w/h;camera.zoom=w/h<1?1.35:1.95;camera.updateProjectionMatrix();renderer.setSize(w,h);
+ camera.aspect=w/h;camera.updateProjectionMatrix();renderer.setSize(w,h);fitCameraToKeys();
 }
 window.addEventListener('resize',resize);resize();
 let previous=performance.now();
