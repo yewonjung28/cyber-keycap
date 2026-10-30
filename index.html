@@ -7,9 +7,9 @@ import * as THREE from 'three';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import {RGBELoader} from 'three/addons/loaders/RGBELoader.js';
 const host=document.getElementById('app');const scene=new THREE.Scene();scene.background=new THREE.Color('#ffffff');const camera=new THREE.OrthographicCamera(-3.8,3.8,3.8,-3.8,.1,100);camera.position.set(0,9,3.5);camera.lookAt(0,0,0);
-const renderer=new THREE.WebGLRenderer({antialias:true,alpha:false});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setSize(innerWidth,innerHeight);renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.35;host.appendChild(renderer.domElement);
-scene.add(new THREE.HemisphereLight('#ffffff','#a08d9c',.65));const light=new THREE.DirectionalLight('#ffffff',1.25);light.position.set(-3,7,5);light.castShadow=true;light.shadow.mapSize.set(2048,2048);light.shadow.camera.left=-6;light.shadow.camera.right=6;light.shadow.camera.top=6;light.shadow.camera.bottom=-6;light.shadow.bias=-.0003;light.shadow.radius=5;scene.add(light);
-new RGBELoader().load('./studio.hdr',texture=>{texture.mapping=THREE.EquirectangularReflectionMapping;scene.environment=texture;scene.environmentIntensity=1.5;document.querySelector('.badge').textContent='STUDIO HDRI LOADED / 005';},undefined,error=>(console.error('HDRI load failed:',error),document.querySelector('.badge').textContent='STUDIO HDRI ERROR / 005'));
+const renderer=new THREE.WebGLRenderer({antialias:true,alpha:false});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setSize(innerWidth,innerHeight);renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.05;host.appendChild(renderer.domElement);
+scene.add(new THREE.HemisphereLight('#ffffff','#a08d9c',.65));const light=new THREE.DirectionalLight('#ffffff',0.9);light.position.set(-3,7,5);light.castShadow=true;light.shadow.mapSize.set(2048,2048);light.shadow.camera.left=-6;light.shadow.camera.right=6;light.shadow.camera.top=6;light.shadow.camera.bottom=-6;light.shadow.bias=-.0003;light.shadow.radius=5;scene.add(light);
+new RGBELoader().load('./studio.hdr',texture=>{texture.mapping=THREE.EquirectangularReflectionMapping;scene.environment=texture;scene.environmentIntensity=0.9;document.querySelector('.badge').textContent='STUDIO HDRI LOADED / 005';},undefined,error=>(console.error('HDRI load failed:',error),document.querySelector('.badge').textContent='STUDIO HDRI ERROR / 005'));
 
 const rig=new THREE.Group();scene.add(rig);
 const keys=[];const ray=new THREE.Raycaster(),pointer=new THREE.Vector2();
@@ -30,7 +30,7 @@ new GLTFLoader().load('./Four_keycaps.glb',g=>{
   const emissive=[];
   key.traverse(o=>{if(!o.isMesh)return;o.castShadow=true;o.receiveShadow=true;
    const original=Array.isArray(o.material)?o.material:[o.material];
-   const clones=original.map(m=>{const clone=m.clone();if(clone.name==='Material.005'){clone.color.set('#6dffd4');clone.needsUpdate=true;}if(clone.emissive&&clone.emissiveIntensity>0){emissive.push({material:clone,intensity:clone.emissiveIntensity});clone.emissiveIntensity=0;}return clone});
+   const clones=original.map(m=>{const clone=m.clone();if(clone.name==='Material.005'){clone.color.set('#21e8b3');clone.metalness=0.08;clone.roughness=0.32;clone.envMapIntensity=0.65;clone.needsUpdate=true;}if(clone.emissive&&clone.emissiveIntensity>0){emissive.push({material:clone,intensity:clone.emissiveIntensity});clone.emissiveIntensity=0;}return clone});
    o.material=Array.isArray(o.material)?clones:clones[0];
   });
   const leds=[];
