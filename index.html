@@ -130,10 +130,33 @@ function pick(e){
  return keys.find(k=>{let o=hits[0].object;while(o){if(o===k.key)return true;o=o.parent;}return false})||null;
 }
 let held=null;
+// Short mechanical keycap click synthesized with Web Audio (no sound file needed).
+let audioCtx=null;
+function playKeyClick(){
+ try{
+  audioCtx??=new (window.AudioContext||window.webkitAudioContext)();
+  if(audioCtx.state==='suspended')audioCtx.resume();
+  const t=audioCtx.currentTime;
+  const n=Math.floor(audioCtx.sampleRate*.035);
+  const buffer=audioCtx.createBuffer(1,n,audioCtx.sampleRate);
+  const data=buffer.getChannelData(0);
+  for(let i=0;i<n;i++){
+   const x=i/audioCtx.sampleRate;
+   const snap=Math.exp(-x*260)*.65;
+   const body=Math.exp(-x*75)*.35;
+   data[i]=(Math.random()*2-1)*(snap+body);
+  }
+  const src=audioCtx.createBufferSource();src.buffer=buffer;
+  const filter=audioCtx.createBiquadFilter();filter.type='bandpass';filter.frequency.value=1650;filter.Q.value=.65;
+  const gain=audioCtx.createGain();gain.gain.setValueAtTime(.22,t);gain.gain.exponentialRampToValueAtTime(.001,t+.038);
+  src.connect(filter);filter.connect(gain);gain.connect(audioCtx.destination);
+  src.start(t);src.stop(t+.04);
+ }catch(err){console.warn('Key sound unavailable:',err)}
+}
 host.addEventListener('pointerdown',e=>{
  if(e.button!==0||e.shiftKey||orbitDrag)return;
  const k=pick(e);if(!k)return;
- held=k;activePointer=e.pointerId;k.target=1;host.setPointerCapture(e.pointerId);
+ held=k;activePointer=e.pointerId;k.target=1;playKeyClick();host.setPointerCapture(e.pointerId);
 });
 function release(e){if(activePointer!==null&&e.pointerId!==activePointer)return;if(held)held.target=0;held=null;activePointer=null;}
 host.addEventListener('pointerup',release);host.addEventListener('pointercancel',release);host.addEventListener('lostpointercapture',release);
