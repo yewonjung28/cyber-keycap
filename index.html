@@ -6,12 +6,41 @@
 import * as THREE from 'three';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import {RGBELoader} from 'three/addons/loaders/RGBELoader.js';
-import {TrackballControls} from 'three/addons/controls/TrackballControls.js';
 const host=document.getElementById('app');const scene=new THREE.Scene();scene.background=new THREE.Color('#ffffff');const camera=new THREE.PerspectiveCamera(95,innerWidth/innerHeight,.03,150);camera.position.set(-1.65,2.05,2.15);camera.lookAt(0,0.45,0);camera.zoom=2.65;camera.updateProjectionMatrix();
 const renderer=new THREE.WebGLRenderer({antialias:true,alpha:false});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setSize(innerWidth,innerHeight);renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.05;host.appendChild(renderer.domElement);
-const controls=new TrackballControls(camera,renderer.domElement);
-controls.mouseButtons={LEFT:-1,MIDDLE:THREE.MOUSE.ROTATE,RIGHT:-1};
-controls.noZoom=true;controls.noPan=true;controls.rotateSpeed=3.0;controls.staticMoving=true;
+// Middle-button orbit: rotate the camera around the keys, keeping its 95° FOV.
+const orbitTarget=new THREE.Vector3();
+let orbitDrag=null;
+const orbitAxis=new THREE.Vector3(),orbitQuat=new THREE.Quaternion();
+const orbitOffset=new THREE.Vector3(),orbitRight=new THREE.Vector3();
+renderer.domElement.addEventListener('pointerdown',e=>{
+ if(e.button!==1)return;
+ e.preventDefault();
+ orbitDrag={id:e.pointerId,x:e.clientX,y:e.clientY};
+ renderer.domElement.setPointerCapture(e.pointerId);
+},true);
+renderer.domElement.addEventListener('pointermove',e=>{
+ if(!orbitDrag||e.pointerId!==orbitDrag.id)return;
+ e.preventDefault();
+ const dx=e.clientX-orbitDrag.x,dy=e.clientY-orbitDrag.y;
+ orbitDrag.x=e.clientX;orbitDrag.y=e.clientY;
+ orbitOffset.copy(camera.position).sub(orbitTarget);
+ camera.updateMatrixWorld();
+ orbitRight.setFromMatrixColumn(camera.matrixWorld,0).normalize();
+ orbitQuat.setFromAxisAngle(new THREE.Vector3(0,1,0),-dx*.008);
+ orbitOffset.applyQuaternion(orbitQuat);
+ orbitQuat.setFromAxisAngle(orbitRight,-dy*.008);
+ orbitOffset.applyQuaternion(orbitQuat);
+ camera.position.copy(orbitTarget).add(orbitOffset);
+ camera.lookAt(orbitTarget);
+ camera.updateMatrixWorld();
+},true);
+function endOrbit(e){
+ if(orbitDrag&&e.pointerId===orbitDrag.id)orbitDrag=null;
+}
+renderer.domElement.addEventListener('pointerup',endOrbit,true);
+renderer.domElement.addEventListener('pointercancel',endOrbit,true);
+renderer.domElement.addEventListener('lostpointercapture',endOrbit,true);
 renderer.domElement.addEventListener('auxclick',e=>{if(e.button===1)e.preventDefault()});
 scene.add(new THREE.HemisphereLight('#ffffff','#a08d9c',.65));const light=new THREE.DirectionalLight('#ffffff',0.9);light.position.set(-3,7,5);light.castShadow=true;light.shadow.mapSize.set(2048,2048);light.shadow.camera.left=-6;light.shadow.camera.right=6;light.shadow.camera.top=6;light.shadow.camera.bottom=-6;light.shadow.bias=-.0003;light.shadow.radius=5;scene.add(light);
 new RGBELoader().load('./studio.hdr',texture=>{texture.mapping=THREE.EquirectangularReflectionMapping;scene.environment=texture;scene.environmentIntensity=0.9;document.querySelector('.badge').textContent='STUDIO HDRI LOADED / 005';},undefined,error=>(console.error('HDRI load failed:',error),document.querySelector('.badge').textContent='STUDIO HDRI ERROR / 005'));
@@ -49,7 +78,7 @@ function fitCameraToKeys(){
   camera.zoom*=Math.min(zoomFactor,3);
  }
  camera.updateProjectionMatrix();
- controls.target.copy(box.getCenter(new THREE.Vector3()));controls.update();
+ orbitTarget.copy(box.getCenter(new THREE.Vector3()));
 }
 
 new GLTFLoader().load('./Four_keycaps.glb',g=>{
@@ -103,13 +132,12 @@ host.addEventListener('pointerup',release);host.addEventListener('pointercancel'
 window.addEventListener('blur',()=>{for(const k of keys)k.target=0;held=null;activePointer=null;});
 function resize(){
  const w=innerWidth,h=innerHeight;
- camera.aspect=w/h;camera.updateProjectionMatrix();renderer.setSize(w,h);controls.handleResize();fitCameraToKeys();
+ camera.aspect=w/h;camera.updateProjectionMatrix();renderer.setSize(w,h);fitCameraToKeys();
 }
 window.addEventListener('resize',resize);resize();
 let previous=performance.now();
 function frame(t){
  const dt=Math.min((t-previous)/1000,.05);previous=t;
- controls.update();
  for(const k of keys){
   k.press+=(k.target-k.press)*(1-Math.exp(-dt*(k.target?22:12)));
   k.key.position.y=k.rest-k.press*.10;
