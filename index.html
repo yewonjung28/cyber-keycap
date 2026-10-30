@@ -14,14 +14,6 @@ new RGBELoader().load('./studio.hdr',texture=>{texture.mapping=THREE.Equirectang
 const rig=new THREE.Group();scene.add(rig);
 const keys=[];const ray=new THREE.Raycaster(),pointer=new THREE.Vector2();
 let activePointer=null;
-let wheelAngle=0;
-let currentAngle=0;
-const MAX_WHEEL_ANGLE=THREE.MathUtils.degToRad(45);
-host.addEventListener('wheel',e=>{
- e.preventDefault();
- wheelAngle=THREE.MathUtils.clamp(wheelAngle+Math.sign(e.deltaY)*THREE.MathUtils.degToRad(7),-MAX_WHEEL_ANGLE,MAX_WHEEL_ANGLE);
-},{passive:false});
-
 const glowColor=new THREE.Color('#ff8cde');
 let fitBounds=null;
 function fitCameraToKeys(){
@@ -107,9 +99,6 @@ window.addEventListener('resize',resize);resize();
 let previous=performance.now();
 function frame(t){
  const dt=Math.min((t-previous)/1000,.05);previous=t;
- currentAngle+=(wheelAngle-currentAngle)*(1-Math.exp(-dt*9));
- rig.rotation.y=currentAngle;
-
  for(const k of keys){
   k.press+=(k.target-k.press)*(1-Math.exp(-dt*(k.target?22:12)));
   k.key.position.y=k.rest-k.press*.10;
