@@ -137,20 +137,23 @@ function playKeyClick(){
   audioCtx??=new (window.AudioContext||window.webkitAudioContext)();
   if(audioCtx.state==='suspended')audioCtx.resume();
   const t=audioCtx.currentTime;
-  const n=Math.floor(audioCtx.sampleRate*.035);
+  const duration=.045;
+  const n=Math.floor(audioCtx.sampleRate*duration);
   const buffer=audioCtx.createBuffer(1,n,audioCtx.sampleRate);
   const data=buffer.getChannelData(0);
   for(let i=0;i<n;i++){
    const x=i/audioCtx.sampleRate;
-   const snap=Math.exp(-x*260)*.65;
-   const body=Math.exp(-x*75)*.35;
+   // Brighter, sharper initial click followed by a short keycap body sound.
+   const snap=Math.exp(-x*460)*.95;
+   const body=Math.exp(-x*115)*.30;
    data[i]=(Math.random()*2-1)*(snap+body);
   }
   const src=audioCtx.createBufferSource();src.buffer=buffer;
-  const filter=audioCtx.createBiquadFilter();filter.type='bandpass';filter.frequency.value=1650;filter.Q.value=.65;
-  const gain=audioCtx.createGain();gain.gain.setValueAtTime(.22,t);gain.gain.exponentialRampToValueAtTime(.001,t+.038);
-  src.connect(filter);filter.connect(gain);gain.connect(audioCtx.destination);
-  src.start(t);src.stop(t+.04);
+  const filter=audioCtx.createBiquadFilter();filter.type='highpass';filter.frequency.value=1150;filter.Q.value=.7;
+  const presence=audioCtx.createBiquadFilter();presence.type='peaking';presence.frequency.value=3100;presence.Q.value=1.0;presence.gain.value=5;
+  const gain=audioCtx.createGain();gain.gain.setValueAtTime(.43,t);gain.gain.exponentialRampToValueAtTime(.001,t+duration);
+  src.connect(filter);filter.connect(presence);presence.connect(gain);gain.connect(audioCtx.destination);
+  src.start(t);src.stop(t+duration);
  }catch(err){console.warn('Key sound unavailable:',err)}
 }
 host.addEventListener('pointerdown',e=>{
