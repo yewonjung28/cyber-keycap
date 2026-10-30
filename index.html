@@ -116,11 +116,11 @@ new GLTFLoader().load('./Four_keycaps.glb',g=>{
    if(!o.isMesh)return;
    o.receiveShadow=true;o.castShadow=true;
    const acrylic=()=>new THREE.MeshPhysicalMaterial({
-    color:'#21e8b3',metalness:0,roughness:0.055,
-    transmission:0.24,thickness:0.75,ior:1.48,
+    color:'#21e8b3',metalness:0,roughness:0.065,
+    transmission:0.04,thickness:0.75,ior:1.48,
     clearcoat:1,clearcoatRoughness:0.025,
-    emissive:'#21e8b3',emissiveIntensity:0.09,
-    envMapIntensity:1.2,side:THREE.FrontSide
+    emissive:'#21e8b3',emissiveIntensity:0.035,
+    envMapIntensity:1.3,side:THREE.FrontSide
    });
    o.material=Array.isArray(o.material)?o.material.map(acrylic):acrylic();
   });
