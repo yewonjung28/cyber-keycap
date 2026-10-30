@@ -111,23 +111,19 @@ new GLTFLoader().load('./Four_keycaps.glb',g=>{
   led.traverse(o=>{if(o.isMesh){o.material=Array.isArray(o.material)?o.material.map(m=>m.clone()):o.material.clone();const materials=Array.isArray(o.material)?o.material:[o.material];for(const m of materials){if(m.emissive){leds.push({material:m,intensity:Math.max(m.emissiveIntensity||0,2)});m.emissiveIntensity=0}m.transparent=true;m.opacity=0;}o.visible=false;}});
   led.visible=false;
   // Candy-pink jelly bases: translucent glossy silicone with a soft inner glow.
-  // Explicitly replace imported Blender glass materials; start opaque enough
-  // that the pink is clearly visible under the white studio HDRI.
-  let baseMeshCount=0;
+  // Style every mesh in the base hierarchy, replacing imported glass shaders.
   base.traverse(o=>{
    if(!o.isMesh)return;
-   baseMeshCount++;
    o.receiveShadow=true;o.castShadow=true;
    const makeJelly=()=>new THREE.MeshPhysicalMaterial({
-    color:'#ff63c7',metalness:0,roughness:0.19,
-    transmission:0.12,thickness:0.5,ior:1.4,
+    color:'#ff58c7',metalness:0,roughness:0.18,
+    transmission:0.06,thickness:0.4,ior:1.38,
     clearcoat:1,clearcoatRoughness:0.08,
-    emissive:'#ff40ac',emissiveIntensity:0.22,
+    emissive:'#ff38b0',emissiveIntensity:0.22,
     envMapIntensity:0.7,side:THREE.DoubleSide
    });
    o.material=Array.isArray(o.material)?o.material.map(makeJelly):makeJelly();
   });
-  console.info('Pink jelly base',i,'meshes:',baseMeshCount,'object:',base.name);
   // LED light source exists in the web scene, independent of Blender light exports.
   const bounds=new THREE.Box3().setFromObject(key),mid=bounds.getCenter(new THREE.Vector3());
   const lamp=new THREE.PointLight(glowColor,0,Math.max(size.x,size.z)*.55,2);
@@ -135,8 +131,29 @@ new GLTFLoader().load('./Four_keycaps.glb',g=>{
   root.add(lamp);
   keys.push({key,led,lamp,emissive,leds,rest:key.position.y,press:0,target:0});
  }
- const pinkBaseMeshes=keys.length?Array.from({length:4},(_,j)=>root.getObjectByName('Base'+(j+1))).filter(Boolean).reduce((n,base)=>{base.traverse(o=>{if(o.isMesh)n++});return n},0):0;
- console.info('Total pink base meshes:',pinkBaseMeshes);
+ // Some exported Blender glass/support meshes are outside Base1..4.
+ // Recolor all remaining visible mesh parts, but never touch keys or LEDs.
+ const keyOrLedMeshes=new Set();
+ for(let i=1;i<=4;i++){
+  for(const partName of ['Key'+i,'Light'+i]){
+   const part=root.getObjectByName(partName);
+   if(part)part.traverse(o=>{if(o.isMesh)keyOrLedMeshes.add(o)});
+  }
+ }
+ let extraSupportMeshes=0;
+ root.traverse(o=>{
+  if(!o.isMesh||keyOrLedMeshes.has(o))return;
+  extraSupportMeshes++;
+  const jelly=()=>new THREE.MeshPhysicalMaterial({
+   color:'#ff58c7',metalness:0,roughness:0.18,
+   transmission:0.06,thickness:0.4,ior:1.38,
+   clearcoat:1,clearcoatRoughness:0.08,
+   emissive:'#ff38b0',emissiveIntensity:0.22,
+   envMapIntensity:0.7,side:THREE.DoubleSide
+  });
+  o.material=Array.isArray(o.material)?o.material.map(jelly):jelly();
+ });
+ console.info('Candy pink support meshes:',extraSupportMeshes);
  fitBounds=new THREE.Box3().setFromObject(rig);fitCameraToKeys();
  document.querySelector('.badge').textContent='4 KEYS READY / 004';
 },undefined,e=>{console.error(e);document.getElementById('error').style.display='block'});
